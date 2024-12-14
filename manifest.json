@@ -3,7 +3,7 @@
 	"name": "Plugin Update Locker",
 	"version": "1.0.2",
 	"minAppVersion": "1.7.7",
-	"description": "Prevent specific plugins in Obsidian from being updated.",
+	"description": "Prevent specific plugins from being updated.",
 	"author": "Lemon695",
 	"authorUrl": "https://github.com/Lemon695",
 	"isDesktopOnly": false
