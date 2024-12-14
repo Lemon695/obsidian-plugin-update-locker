@@ -1,4 +1,4 @@
-import {App, Plugin, PluginSettingTab, Setting} from 'obsidian';
+import {App, Plugin, PluginSettingTab, Setting, debounce} from 'obsidian';
 import * as fs from 'fs';
 
 interface PluginLockInfo {
@@ -62,9 +62,6 @@ export default class PluginLockerPlugin extends Plugin {
 		this.saveSettings();
 	}
 
-	/**
-	 * Update the version in manifest.json
-	 */
 	updatePluginManifestVersion(pluginId: string, version: string) {
 		const pluginDir = (this.app.vault.adapter as any).getBasePath() + `/.obsidian/plugins/${pluginId}`;
 		const manifestPath = `${pluginDir}/manifest.json`;
@@ -81,9 +78,6 @@ export default class PluginLockerPlugin extends Plugin {
 		}
 	}
 
-	/**
-	 * Restore the original version in manifest.json
-	 */
 	restorePluginVersion(pluginId: string, version: string) {
 		const pluginDir = (this.app.vault.adapter as any).getBasePath() + `/.obsidian/plugins/${pluginId}`;
 		const manifestPath = `${pluginDir}/manifest.json`;
@@ -103,10 +97,22 @@ export default class PluginLockerPlugin extends Plugin {
 
 class PluginLockerSettingTab extends PluginSettingTab {
 	plugin: PluginLockerPlugin;
+	filterString: string = '';
+	settingsContainerEl: HTMLElement;
+	originalPluginList: string[];
 
 	constructor(app: App, plugin: PluginLockerPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
+
+		// 预先获取并缓存插件列表
+		this.originalPluginList = Object.keys(
+			(this.app as any).plugins.manifests || {}
+		).filter(
+			(pluginId) =>
+				!(this.app as any).plugins.manifests[pluginId].isBuiltin &&
+				pluginId !== this.plugin.manifest.id
+		);
 	}
 
 	display(): void {
@@ -115,19 +121,50 @@ class PluginLockerSettingTab extends PluginSettingTab {
 
 		containerEl.createEl('h2', {text: 'Plugin Update Locker'});
 
-		const installedPlugins = Object.keys(
-			(this.app as any).plugins.manifests || {}
-		).filter(
-			(pluginId) =>
-				!(this.app as any).plugins.manifests[pluginId].isBuiltin &&
-				pluginId !== this.plugin.manifest.id
-		);
+		// 添加搜索设置
+		new Setting(containerEl)
+			.setName('Search Plugins')
+			.addSearch((searchComponent) => {
+				searchComponent.setValue(this.filterString);
+				searchComponent.onChange(
+					debounce((value: string) => {
+						this.filterString = value.toLowerCase().trim();
+						this.filterPluginList();
+					}, 250, true)
+				);
+				searchComponent.setPlaceholder('Search plugins...');
+			});
 
-		installedPlugins.forEach((pluginId) => {
+		// 创建插件列表容器
+		this.settingsContainerEl = containerEl.createDiv();
+
+		// 初始渲染插件列表
+		this.filterPluginList();
+	}
+
+	filterPluginList() {
+		const filteredPlugins = this.originalPluginList.filter((pluginId) => {
+			const manifest = (this.app as any).plugins.manifests[pluginId];
+			const pluginName = (manifest.name || pluginId).toLowerCase();
+			return this.filterString === '' || pluginName.includes(this.filterString);
+		});
+
+		// 清空之前的列表
+		this.settingsContainerEl.empty();
+
+		if (filteredPlugins.length === 0) {
+			this.settingsContainerEl.createEl('p', {
+				text: 'No matching plugins found',
+				cls: 'no-plugins-found'
+			});
+			return;
+		}
+
+		filteredPlugins.forEach((pluginId) => {
 			const manifest = (this.app as any).plugins.manifests[pluginId];
 			const lockInfo = this.plugin.settings.lockedPlugins.find(plugin => plugin.pluginId === pluginId);
 
-			new Setting(containerEl)
+			new Setting(this.settingsContainerEl)
 				.setName(manifest.name || pluginId)
 				.setDesc(
 					lockInfo
@@ -139,7 +176,7 @@ class PluginLockerSettingTab extends PluginSettingTab {
 						.setValue(!!lockInfo)
 						.onChange(() => {
 							this.plugin.togglePluginLock(pluginId);
-							this.display(); // Refresh the settings UI
+							this.display(); // 重新渲染整个设置界面
 						});
 				});
 		});
