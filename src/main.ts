@@ -1,4 +1,4 @@
-import {App, Plugin, PluginSettingTab, Setting, debounce} from 'obsidian';
+import {App, Plugin, PluginSettingTab, Setting, debounce, FileSystemAdapter} from 'obsidian';
 import * as fs from 'fs';
 
 interface PluginLockInfo {
@@ -36,61 +36,67 @@ export default class PluginLockerPlugin extends Plugin {
 	}
 
 	togglePluginLock(pluginId: string) {
-		const pluginDir = (this.app.vault.adapter as any).getBasePath() + `/.obsidian/plugins/${pluginId}`;
-		const manifestPath = `${pluginDir}/manifest.json`;
+		if (this.app.vault.adapter instanceof FileSystemAdapter) {
+			const pluginDir = `${this.app.vault.adapter.getBasePath()}/${this.app.vault.configDir}/plugins/${pluginId}`;
+			const manifestPath = `${pluginDir}/manifest.json`;
 
-		if (this.isPluginLocked(pluginId)) {
-			const index = this.settings.lockedPlugins.findIndex(plugin => plugin.pluginId === pluginId);
-			if (index !== -1) {
-				const { originalVersion } = this.settings.lockedPlugins[index];
-				this.restorePluginVersion(pluginId, originalVersion);
-				this.settings.lockedPlugins.splice(index, 1);
-			}
-		} else {
-			try {
-				if (fs.existsSync(manifestPath)) {
-					const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
-					const originalVersion = manifest.version;
-					const updatedVersion = `9999.${originalVersion}`;
-					this.settings.lockedPlugins.push({ pluginId, originalVersion, updatedVersion });
-					this.updatePluginManifestVersion(pluginId, updatedVersion);
+			if (this.isPluginLocked(pluginId)) {
+				const index = this.settings.lockedPlugins.findIndex(plugin => plugin.pluginId === pluginId);
+				if (index !== -1) {
+					const {originalVersion} = this.settings.lockedPlugins[index];
+					this.restorePluginVersion(pluginId, originalVersion);
+					this.settings.lockedPlugins.splice(index, 1);
 				}
-			} catch (error) {
-				console.error(`Failed to process version information for ${pluginId}:`, error);
+			} else {
+				try {
+					if (fs.existsSync(manifestPath)) {
+						const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+						const originalVersion = manifest.version;
+						const updatedVersion = `9999.${originalVersion}`;
+						this.settings.lockedPlugins.push({pluginId, originalVersion, updatedVersion});
+						this.updatePluginManifestVersion(pluginId, updatedVersion);
+					}
+				} catch (error) {
+					console.error(`Failed to process version information for ${pluginId}:`, error);
+				}
 			}
+			this.saveSettings();
 		}
-		this.saveSettings();
 	}
 
 	updatePluginManifestVersion(pluginId: string, version: string) {
-		const pluginDir = (this.app.vault.adapter as any).getBasePath() + `/.obsidian/plugins/${pluginId}`;
-		const manifestPath = `${pluginDir}/manifest.json`;
+		if (this.app.vault.adapter instanceof FileSystemAdapter) {
+			const pluginDir = `${this.app.vault.adapter.getBasePath()}/${this.app.vault.configDir}/plugins/${pluginId}`;
+			const manifestPath = `${pluginDir}/manifest.json`;
 
-		try {
-			if (fs.existsSync(manifestPath)) {
-				const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
-				manifest.version = version;
-				fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
-				console.log(`Updated version of ${pluginId} to ${version}`);
+			try {
+				if (fs.existsSync(manifestPath)) {
+					const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+					manifest.version = version;
+					fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
+					console.log(`Updated version of ${pluginId} to ${version}`);
+				}
+			} catch (error) {
+				console.error(`Failed to update version for ${pluginId}:`, error);
 			}
-		} catch (error) {
-			console.error(`Failed to update version for ${pluginId}:`, error);
 		}
 	}
 
 	restorePluginVersion(pluginId: string, version: string) {
-		const pluginDir = (this.app.vault.adapter as any).getBasePath() + `/.obsidian/plugins/${pluginId}`;
-		const manifestPath = `${pluginDir}/manifest.json`;
+		if (this.app.vault.adapter instanceof FileSystemAdapter) {
+			const pluginDir = `${this.app.vault.adapter.getBasePath()}/${this.app.vault.configDir}/plugins/${pluginId}`;
+			const manifestPath = `${pluginDir}/manifest.json`;
 
-		try {
-			if (fs.existsSync(manifestPath)) {
-				const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
-				manifest.version = version;
-				fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
-				console.log(`Restored version of ${pluginId} to ${version}`);
+			try {
+				if (fs.existsSync(manifestPath)) {
+					const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+					manifest.version = version;
+					fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
+					console.log(`Restored version of ${pluginId} to ${version}`);
+				}
+			} catch (error) {
+				console.error(`Failed to restore version for ${pluginId}:`, error);
 			}
-		} catch (error) {
-			console.error(`Failed to restore version for ${pluginId}:`, error);
 		}
 	}
 }
