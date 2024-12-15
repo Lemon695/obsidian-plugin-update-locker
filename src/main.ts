@@ -15,6 +15,33 @@ const DEFAULT_SETTINGS: PluginLockerSettings = {
 	lockedPlugins: [],
 };
 
+export interface PluginManifest {
+	dir?: string;
+	id: string;
+	name: string;
+	author: string;
+	version: string;
+	minAppVersion: string;
+	description: string;
+	authorUrl?: string;
+	isDesktopOnly?: boolean;
+}
+
+interface PluginSystem {
+	manifests: Record<string, PluginManifest>;
+}
+
+declare module 'obsidian' {
+	interface App {
+		plugins: PluginSystem;
+	}
+}
+
+export abstract class BasePlugin extends Plugin {
+	app: App;
+	manifest: PluginManifest;
+}
+
 export default class PluginLockerPlugin extends Plugin {
 	settings: PluginLockerSettings;
 
@@ -50,7 +77,7 @@ export default class PluginLockerPlugin extends Plugin {
 			} else {
 				try {
 					if (fs.existsSync(manifestPath)) {
-						const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+						const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8')) as PluginManifest;
 						const originalVersion = manifest.version;
 						const updatedVersion = `9999.${originalVersion}`;
 						this.settings.lockedPlugins.push({pluginId, originalVersion, updatedVersion});
@@ -71,7 +98,7 @@ export default class PluginLockerPlugin extends Plugin {
 
 			try {
 				if (fs.existsSync(manifestPath)) {
-					const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+					const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8')) as PluginManifest;
 					manifest.version = version;
 					fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
 					console.log(`Updated version of ${pluginId} to ${version}`);
@@ -89,7 +116,7 @@ export default class PluginLockerPlugin extends Plugin {
 
 			try {
 				if (fs.existsSync(manifestPath)) {
-					const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+					const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8')) as PluginManifest;
 					manifest.version = version;
 					fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
 					console.log(`Restored version of ${pluginId} to ${version}`);
@@ -105,20 +132,16 @@ class PluginLockerSettingTab extends PluginSettingTab {
 	plugin: PluginLockerPlugin;
 	filterString: string = '';
 	settingsContainerEl: HTMLElement;
-	originalPluginList: string[];
+	originalPluginList: PluginManifest[];
 
 	constructor(app: App, plugin: PluginLockerPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 
-		// 预先获取并缓存插件列表
-		this.originalPluginList = Object.keys(
-			(this.app as any).plugins.manifests || {}
-		).filter(
-			(pluginId) =>
-				!(this.app as any).plugins.manifests[pluginId].isBuiltin &&
-				pluginId !== this.plugin.manifest.id
-		);
+		// 获取插件列表并缓存
+		const pluginManifests = this.app.plugins.manifests;
+		this.originalPluginList = Object.values(pluginManifests)
+			.filter(manifest => !manifest.isDesktopOnly && manifest.id !== this.plugin.manifest.id);
 	}
 
 	display(): void {
@@ -127,10 +150,10 @@ class PluginLockerSettingTab extends PluginSettingTab {
 
 		containerEl.createEl('h2', {text: 'Plugin Update Locker'});
 
-		// 添加搜索设置
+		// 搜索框
 		new Setting(containerEl)
 			.setName('Search Plugins')
-			.addSearch((searchComponent) => {
+			.addSearch(searchComponent => {
 				searchComponent.setValue(this.filterString);
 				searchComponent.onChange(
 					debounce((value: string) => {
@@ -141,7 +164,7 @@ class PluginLockerSettingTab extends PluginSettingTab {
 				searchComponent.setPlaceholder('Search plugins...');
 			});
 
-		// 创建插件列表容器
+		// 插件列表容器
 		this.settingsContainerEl = containerEl.createDiv();
 
 		// 初始渲染插件列表
@@ -149,10 +172,11 @@ class PluginLockerSettingTab extends PluginSettingTab {
 	}
 
 	filterPluginList() {
-		const filteredPlugins = this.originalPluginList.filter((pluginId) => {
-			const manifest = (this.app as any).plugins.manifests[pluginId];
-			const pluginName = (manifest.name || pluginId).toLowerCase();
-			return this.filterString === '' || pluginName.includes(this.filterString);
+		const filteredPlugins = this.originalPluginList.filter(plugin => {
+			return (
+				this.filterString === '' ||
+				plugin.name.toLowerCase().includes(this.filterString)
+			);
 		});
 
 		// 清空之前的列表
@@ -166,23 +190,24 @@ class PluginLockerSettingTab extends PluginSettingTab {
 			return;
 		}
 
-		filteredPlugins.forEach((pluginId) => {
-			const manifest = (this.app as any).plugins.manifests[pluginId];
-			const lockInfo = this.plugin.settings.lockedPlugins.find(plugin => plugin.pluginId === pluginId);
+		filteredPlugins.forEach(manifest => {
+			const lockInfo = this.plugin.settings.lockedPlugins.find(
+				plugin => plugin.pluginId === manifest.id
+			);
 
 			new Setting(this.settingsContainerEl)
-				.setName(manifest.name || pluginId)
+				.setName(manifest.name)
 				.setDesc(
 					lockInfo
 						? `Locked version: ${lockInfo.updatedVersion}, Original version: ${lockInfo.originalVersion}`
-						: `Locking will prevent ${manifest.name || pluginId} from updating`
+						: `Locking will prevent ${manifest.name} from updating`
 				)
-				.addToggle((toggle) => {
+				.addToggle(toggle => {
 					toggle
 						.setValue(!!lockInfo)
 						.onChange(() => {
-							this.plugin.togglePluginLock(pluginId);
-							this.display(); // 重新渲染整个设置界面
+							this.plugin.togglePluginLock(manifest.id);
+							this.display(); // 重新渲染界面
 						});
 				});
 		});
