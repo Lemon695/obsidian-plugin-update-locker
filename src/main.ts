@@ -1,4 +1,4 @@
-import {App, Plugin, PluginSettingTab, Setting, debounce, FileSystemAdapter} from 'obsidian';
+import {App, Plugin, PluginSettingTab, Setting, debounce, FileSystemAdapter, PluginManifest} from 'obsidian';
 import * as fs from 'fs';
 
 interface PluginLockInfo {
@@ -15,18 +15,6 @@ const DEFAULT_SETTINGS: PluginLockerSettings = {
 	lockedPlugins: [],
 };
 
-export interface PluginManifest {
-	dir?: string;
-	id: string;
-	name: string;
-	author: string;
-	version: string;
-	minAppVersion: string;
-	description: string;
-	authorUrl?: string;
-	isDesktopOnly?: boolean;
-}
-
 interface PluginSystem {
 	manifests: Record<string, PluginManifest>;
 }
@@ -35,11 +23,6 @@ declare module 'obsidian' {
 	interface App {
 		plugins: PluginSystem;
 	}
-}
-
-export abstract class BasePlugin extends Plugin {
-	app: App;
-	manifest: PluginManifest;
 }
 
 export default class PluginLockerPlugin extends Plugin {
@@ -148,11 +131,9 @@ class PluginLockerSettingTab extends PluginSettingTab {
 		const {containerEl} = this;
 		containerEl.empty();
 
-		containerEl.createEl('h2', {text: 'Plugin Update Locker'});
-
 		// 搜索框
 		new Setting(containerEl)
-			.setName('Search Plugins')
+			.setName('Search plugins')
 			.addSearch(searchComponent => {
 				searchComponent.setValue(this.filterString);
 				searchComponent.onChange(
