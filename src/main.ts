@@ -1,4 +1,4 @@
-import {App, Plugin, PluginSettingTab, Setting, debounce, PluginManifest} from 'obsidian';
+import {App, Plugin, PluginSettingTab, Setting, debounce, PluginManifest, Notice} from 'obsidian';
 
 interface PluginLockInfo {
 	pluginId: string;
@@ -26,6 +26,7 @@ declare module 'obsidian' {
 
 export default class PluginLockerPlugin extends Plugin {
 	settings: PluginLockerSettings;
+	private lockOperations = new Set<string>();
 
 	async onload() {
 		await this.loadSettings();
@@ -45,61 +46,77 @@ export default class PluginLockerPlugin extends Plugin {
 	}
 
 	async togglePluginLock(pluginId: string) {
+		if (this.lockOperations.has(pluginId)) {
+			new Notice('Operation in progress, please wait...');
+			return;
+		}
+
+		this.lockOperations.add(pluginId);
 		const manifestPath = `${this.app.vault.configDir}/plugins/${pluginId}/manifest.json`;
 
-		if (this.isPluginLocked(pluginId)) {
-			const index = this.settings.lockedPlugins.findIndex(plugin => plugin.pluginId === pluginId);
-			if (index !== -1) {
-				const {originalVersion} = this.settings.lockedPlugins[index];
-				await this.restorePluginVersion(pluginId, originalVersion);
-				this.settings.lockedPlugins.splice(index, 1);
-			}
-		} else {
-			try {
+		try {
+			if (this.isPluginLocked(pluginId)) {
+				const index = this.settings.lockedPlugins.findIndex(plugin => plugin.pluginId === pluginId);
+				if (index !== -1) {
+					const {originalVersion} = this.settings.lockedPlugins[index];
+					await this.restorePluginVersion(pluginId, originalVersion);
+					this.settings.lockedPlugins.splice(index, 1);
+					await this.saveSettings();
+					new Notice(`Unlocked: ${pluginId}`);
+				}
+			} else {
 				const manifestContent = await this.app.vault.adapter.read(manifestPath);
 				const manifest = JSON.parse(manifestContent);
 				const originalVersion = manifest.version;
+
+				if (originalVersion.startsWith('9999.')) {
+					new Notice(`Plugin ${pluginId} version already locked`);
+					return;
+				}
+
 				const updatedVersion = `9999.${originalVersion}`;
 				this.settings.lockedPlugins.push({pluginId, originalVersion, updatedVersion});
 				await this.updatePluginManifestVersion(pluginId, updatedVersion);
-			} catch (error) {
-				console.error(`Failed to process version information for ${pluginId}:`, error);
+				await this.saveSettings();
+				new Notice(`Locked: ${pluginId}`);
 			}
+		} catch (error) {
+			console.error(`Failed to toggle lock for ${pluginId}:`, error);
+			new Notice(`Failed to toggle lock for ${pluginId}`);
+		} finally {
+			this.lockOperations.delete(pluginId);
 		}
-		await this.saveSettings();
 	}
 
 	async updatePluginManifestVersion(pluginId: string, version: string) {
 		const manifestPath = `${this.app.vault.configDir}/plugins/${pluginId}/manifest.json`;
 
-		try {
-			const manifestContent = await this.app.vault.adapter.read(manifestPath);
-			const manifest = JSON.parse(manifestContent);
-			manifest.version = version;
-			await this.app.vault.adapter.write(
-				manifestPath,
-				JSON.stringify(manifest, null, 2)
-			);
-			console.log(`Updated version of ${pluginId} to ${version}`);
-		} catch (error) {
-			console.error(`Failed to update version for ${pluginId}:`, error);
+		const manifestContent = await this.app.vault.adapter.read(manifestPath);
+		const manifest = JSON.parse(manifestContent);
+		manifest.version = version;
+		await this.app.vault.adapter.write(
+			manifestPath,
+			JSON.stringify(manifest, null, 2)
+		);
+
+		if (this.app.plugins.manifests[pluginId]) {
+			this.app.plugins.manifests[pluginId].version = version;
 		}
 	}
 
 	async restorePluginVersion(pluginId: string, version: string) {
 		const manifestPath = `${this.app.vault.configDir}/plugins/${pluginId}/manifest.json`;
 
-		try {
-			const manifestContent = await this.app.vault.adapter.read(manifestPath);
-			const manifest = JSON.parse(manifestContent);
-			manifest.version = version;
-			await this.app.vault.adapter.write(
-				manifestPath,
-				JSON.stringify(manifest, null, 2)
-			);
-			console.log(`Restored version of ${pluginId} to ${version}`);
-		} catch (error) {
-			console.error(`Failed to restore version for ${pluginId}:`, error);
+		const manifestContent = await this.app.vault.adapter.read(manifestPath);
+		const manifest = JSON.parse(manifestContent);
+		manifest.version = version;
+		await this.app.vault.adapter.write(
+			manifestPath,
+			JSON.stringify(manifest, null, 2)
+		);
+
+		if (this.app.plugins.manifests[pluginId]) {
+			this.app.plugins.manifests[pluginId].version = version;
 		}
 	}
 }
