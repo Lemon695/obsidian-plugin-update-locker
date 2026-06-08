@@ -2,44 +2,58 @@
 
 English | [中文](./README.zh-cn.md)
 
-It can prevent specified plugins in Obsidian from updating, ensuring that these plugins run stably on a specific version and avoiding compatibility issues or feature changes caused by updates.
-
-Obsidian does not directly provide an interface to block updates. Therefore, by modifying the specified plugin's version in the `manifest.json`, we can bypass the software's update detection mechanism and achieve the goal of preventing plugin updates.
+Plugin Update Locker helps you freeze selected Obsidian community plugins on a known-good version. It works by rewriting a target plugin's `manifest.json` version to a very large value (for example `9999.1.6.5`) so Obsidian treats it as already up to date.
 
 ![sidebar-1](./resources/screenshots/img-ASDSAUHF-23048234920300903-v1.png)
 
-As shown in the image above, when clicking the "Check for updates" button during the plugin update process, the system checks for all updatable plugins and proceeds to update them.
+## Features
 
-Currently, the plugin modifies the specified plugin's `manifest.json` file to change its version, effectively bypassing the plugin update detection.
-
+- **Version locking**: Prevent selected plugins from being updated by prefixing their version with `9999.`.
+- **Batch operations**: Lock or unlock all currently visible plugins after search / filtering.
+- **Conflict detection**: Detect mismatches between lock records and physical plugin files.
+- **Snapshot and restore**: Create a snapshot before locking and restore backed-up plugin assets later.
+- **Release preview**: Click a plugin name to try fetching GitHub release notes and compare versions when repository information can be resolved.
+- **Compatibility warning**: Warn when a plugin's `minAppVersion` is newer than your current Obsidian version.
+- **Config sync**: Export lock settings to JSON files inside your vault and import JSON config files from the same vault.
+- **Bilingual UI**: English and Chinese interface support.
 
 ## Usage
 
-Plugin Configuration Page
+### Plugin list management
+The settings page shows installed community plugins and lets you manage their lock state.
 
 ![sidebar-1](./resources/screenshots/img-AOSIUD-23482398472938400012.png)
 
-The plugin configuration page displays all the plugins and allows users to configure whether to lock their updates.
+- **Lock**: Toggle a plugin on. Its version changes from `x.y.z` to `9999.x.y.z`.
+- **Unlock**: Toggle it off to restore the original version.
+- **Batch lock / unlock**: Use the top action buttons on the currently visible list.
+- **Manual scan**: Re-scan for conflicts after external file changes.
 
-### Lock Plugin Updates
-- 1、For example: For the "Actions URI" plugin, click the button to select Lock Update. The plugin version will change from `1.6.5` to `9999.1.6.5`.
-- 2、When clicking the "Check for updates" button again, the plugin will not be detected or updated as long as its version is less than `9999.1.6.5`.
+### Snapshot recovery
+Before a plugin is locked, Plugin Update Locker can save a snapshot of:
+- `main.js`
+- `styles.css`
+- `manifest.json`
 
-### Unlock Plugin Updates
-- 1、For example: For the "Actions URI" plugin, click the button to select Cancel Lock Update. The plugin version will change from `9999.1.6.5` back to `1.6.5`.
-- 2、When clicking the "Check for updates" button again, if a new version is available, it will be detected, and the plugin can be updated.
+If a later update breaks the plugin, you can restore the saved snapshot from the settings page.
 
+### Release notes preview
+When the changelog module is enabled, clicking a plugin name attempts to fetch GitHub release data and opens a modal preview when the plugin repository can be identified.
 
-## Reason for Plugin Development and Its Purpose
+### Config export / import
+Use the sync module to:
+- export current lock settings to `Plugin Update Locker/locker-config-YYYY-MM-DD.json` inside your current vault;
+- import any JSON config file that already exists inside the current vault.
 
-Currently, I want to ask questions and receive replies from AI models like ChatGPT and save them as notes for easier record-keeping and review later.
+## External access and data changes
+- The locking feature directly rewrites other community plugins' `manifest.json` files inside your vault configuration directory.
+- The snapshot feature stores backup copies of `main.js`, `styles.css`, and `manifest.json` for target plugins.
+- The changelog feature sends requests to the GitHub Releases API when you click a plugin name or when version preview data is fetched.
 
-I ultimately chose to use the [obsidian-smart-connections](https://github.com/brianpetro/obsidian-smart-connections) plugin. However, after upgrading the plugin from version `2.2.85` to `2.3.42`, I found that there were significant changes between these two versions.
+## Network note
+The changelog feature requests data from the GitHub Releases API only when that module is enabled and used.
 
-The "Custom API (OpenAI format)" configuration that I frequently used was removed, which caused issues with customizing interfaces like ChatGPT's API.
-
-This led me to the idea of adding a plugin update lock feature to prevent sudden changes caused by updates, allowing me to wait until future versions stabilize before removing the lock.
+## Why this exists
+Many Obsidian plugins ship breaking changes between versions. This plugin is meant for users who prefer to stay on a stable, known-good version until they are ready to migrate.
 
 ![sidebar-1](./resources/screenshots/img-AUISYD-982847289481232101.png)
-
-

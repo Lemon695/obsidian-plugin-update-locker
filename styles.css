@@ -1,8 +1,71 @@
-/*
+/* Plugin Update Locker Styles (pul-) */
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.pul-controls {
+    margin-bottom: 1em;
+    padding-bottom: 1em;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
 
-If your plugin does not need CSS, delete this file.
+.pul-group-header {
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    padding: 0.5em;
+    background-color: var(--background-secondary);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 1em;
+    font-weight: 600;
+}
 
-*/
+.pul-group-header-icon,
+.pul-status-icon,
+.pul-compat-warn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pul-plugin-name-link {
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+}
+
+.pul-locked {
+    background-color: var(--background-secondary-alt);
+    border-left: 3px solid var(--interactive-accent);
+}
+
+.pul-no-plugins-found {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 2em;
+}
+
+.pul-version-badge {
+    background-color: var(--background-modifier-accent);
+    color: var(--text-on-accent);
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 0.8em;
+    margin-left: 8px;
+    font-family: var(--font-monospace);
+    vertical-align: middle;
+}
+
+.pul-status-text,
+.pul-version-diff {
+    margin-left: 6px;
+}
+
+.pul-conflict {
+    border-left: 3px solid var(--background-modifier-error);
+}
+
+.pul-release-notes-title {
+    font-size: 1.25em;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
