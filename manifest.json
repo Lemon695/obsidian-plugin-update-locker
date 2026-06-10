@@ -1,7 +1,7 @@
 {
 	"id": "plugin-update-locker",
-	"name": "Plugin Update Locker",
-	"version": "1.0.7",
+	"name": "Update Locker",
+	"version": "1.0.8",
 	"minAppVersion": "1.12.7",
 	"description": "Prevent specific plugins from being updated.",
 	"author": "Lemon695",
