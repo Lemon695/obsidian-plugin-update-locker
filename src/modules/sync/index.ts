@@ -1,5 +1,5 @@
 import { FuzzySuggestModal, Notice, Setting, TFile, normalizePath } from 'obsidian';
-import type { PluginModule } from '../../core/types';
+import type { PluginModule, PluginLockInfo } from '../../core/types';
 import type PluginLockerPlugin from '../../main';
 import { t } from '../../i18n/locale';
 
@@ -56,7 +56,7 @@ export class SyncModule implements PluginModule {
 				return;
 			}
 
-			this.plugin.settings.lockedPlugins = config.lockedPlugins;
+			this.plugin.settings.lockedPlugins = config.lockedPlugins as PluginLockInfo[];
 			if (typeof config.autoCheckConflicts === 'boolean') {
 				this.plugin.settings.autoCheckConflicts = config.autoCheckConflicts;
 			}

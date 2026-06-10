@@ -26,3 +26,4 @@ data.json
 /manifest.json.bak
 /.omx/
 /.codex/hooks.json
+/pnpm-lock.yaml

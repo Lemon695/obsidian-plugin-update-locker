@@ -31,7 +31,8 @@ export class PluginLockerSettingTab extends PluginSettingTab {
 								await this.plugin.moduleManager.disableModule(module.id);
 							}
 							// 刷新面板以显示/隐藏子设置项
-							this.display();
+							// eslint-disable-next-line @typescript-eslint/no-deprecated
+						this.display();
 						});
 				});
 

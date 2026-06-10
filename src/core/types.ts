@@ -1,4 +1,4 @@
-import { PluginManifest, Setting } from 'obsidian';
+import { PluginManifest } from 'obsidian';
 
 /**
  * PluginModule 接口规范

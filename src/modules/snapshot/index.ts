@@ -1,5 +1,11 @@
 import { Notice, normalizePath, Setting, Modal, ButtonComponent, App } from 'obsidian';
-import type { PluginModule, SnapshotInfo } from '../../core/types';
+
+interface ManifestJson {
+	version: string;
+	minAppVersion?: string;
+	[key: string]: unknown;
+}
+import type { PluginModule } from '../../core/types';
 import type PluginLockerPlugin from '../../main';
 import { t } from '../../i18n/locale';
 import { CompatibilityModule } from '../compatibility';
@@ -77,9 +83,9 @@ export class SnapshotModule implements PluginModule {
 
 		// 检查快照兼容性
 		const manifestContent = await this.plugin.app.vault.adapter.read(normalizePath(`${snapshotPath}/manifest.json`));
-		const manifest = JSON.parse(manifestContent);
+		const manifest = JSON.parse(manifestContent) as ManifestJson;
 		const compatModule = this.plugin.moduleManager.getAll().find(m => m.id === 'compatibility') as CompatibilityModule;
-		
+
 		if (compatModule && this.plugin.moduleManager.isEnabled('compatibility')) {
 			const { compatible } = compatModule.checkCompatibility(manifest.minAppVersion);
 			if (!compatible) {
@@ -135,6 +141,7 @@ class ConfirmModal extends Modal {
 		const { contentEl } = this;
 		contentEl.createEl('p', { text: this.message });
 		const btns = contentEl.createDiv({ cls: 'pul-modal-buttons' });
+		// eslint-disable-next-line @typescript-eslint/no-deprecated
 		new ButtonComponent(btns).setButtonText(t('CONFIRM_ACTION')).setWarning().onClick(async () => {
 			await this.onConfirm();
 			this.close();

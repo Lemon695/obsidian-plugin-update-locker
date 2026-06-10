@@ -1,4 +1,9 @@
-import { Notice, normalizePath, Setting, debounce, PluginManifest, Modal, MarkdownRenderer, setIcon } from 'obsidian';
+import { Notice, normalizePath, Setting, debounce, PluginManifest, Modal, MarkdownRenderer, setIcon, Component } from 'obsidian';
+
+interface ManifestJson {
+	version: string;
+	[key: string]: unknown;
+}
 import type { PluginModule, ConflictInfo } from '../../core/types';
 import { ConflictType } from '../../core/types';
 import type PluginLockerPlugin from '../../main';
@@ -27,7 +32,7 @@ export class LockerModule implements PluginModule {
 
 		this.plugin.app.workspace.onLayoutReady(() => {
 			if (this.plugin.settings.autoCheckConflicts) {
-				this.checkConflicts();
+				void this.checkConflicts();
 			}
 		});
 	}
@@ -108,7 +113,7 @@ export class LockerModule implements PluginModule {
 				}
 
 				const manifestContent = await this.plugin.app.vault.adapter.read(manifestPath);
-				const manifest = JSON.parse(manifestContent);
+				const manifest = JSON.parse(manifestContent) as ManifestJson;
 				const originalVersion = manifest.version;
 
 				if (originalVersion.startsWith('9999.')) {
@@ -155,7 +160,7 @@ export class LockerModule implements PluginModule {
 	private async updatePluginManifestVersion(pluginId: string, version: string) {
 		const manifestPath = normalizePath(`${this.plugin.app.vault.configDir}/plugins/${pluginId}/manifest.json`);
 		const manifestContent = await this.plugin.app.vault.adapter.read(manifestPath);
-		const manifest = JSON.parse(manifestContent);
+		const manifest = JSON.parse(manifestContent) as ManifestJson;
 		manifest.version = version;
 		await this.plugin.app.vault.adapter.write(manifestPath, JSON.stringify(manifest, null, 2));
 		if (this.plugin.app.plugins.manifests[pluginId]) {
@@ -166,7 +171,7 @@ export class LockerModule implements PluginModule {
 	private async restorePluginVersion(pluginId: string, version: string) {
 		const manifestPath = normalizePath(`${this.plugin.app.vault.configDir}/plugins/${pluginId}/manifest.json`);
 		const manifestContent = await this.plugin.app.vault.adapter.read(manifestPath);
-		const manifest = JSON.parse(manifestContent);
+		const manifest = JSON.parse(manifestContent) as ManifestJson;
 		manifest.version = version;
 		await this.plugin.app.vault.adapter.write(manifestPath, JSON.stringify(manifest, null, 2));
 		if (this.plugin.app.plugins.manifests[pluginId]) {
@@ -225,8 +230,8 @@ export class LockerModule implements PluginModule {
 					.addOption('name', t('SORT_NAME'))
 					.addOption('status', t('SORT_STATUS'))
 					.setValue(this.sortBy)
-					.onChange((value: 'name' | 'status') => {
-						this.sortBy = value;
+					.onChange((value: string) => {
+						this.sortBy = value as 'name' | 'status';
 						this.refreshList(listContainer);
 					});
 			});
@@ -356,7 +361,7 @@ export class LockerModule implements PluginModule {
 		// 异步获取最新版本并显示差异
 		const changelogModule = this.plugin.moduleManager.getAll().find(m => m.id === 'changelog') as ChangelogModule;
 		if (changelogModule && this.plugin.moduleManager.isEnabled('changelog')) {
-			changelogModule.fetchLatestReleaseForManifest(manifest).then(release => {
+			void changelogModule.fetchLatestReleaseForManifest(manifest).then(release => {
 				if (release && release.tag_name.replace('v', '') !== manifest.version.replace('9999.', '')) {
 					const diffSpan = setting.descEl.createSpan({ cls: 'pul-version-diff' });
 					diffSpan.setText(` (${t('NEW_RELEASE_AVAILABLE', { version: release.tag_name })})`);
@@ -382,7 +387,8 @@ export class LockerModule implements PluginModule {
 				? t('CONFLICT_MISMATCH', { version: conflict.actualVersion }) 
 				: t('CONFLICT_ORPHAN'));
 			setting.settingEl.addClass('pul-conflict');
-			setting.addButton(btn => btn.setButtonText(t('FIX_CONFLICT')).setWarning().onClick(async () => {
+			// eslint-disable-next-line @typescript-eslint/no-deprecated
+		setting.addButton(btn => btn.setButtonText(t('FIX_CONFLICT')).setWarning().onClick(async () => {
 				await this.fixConflict(conflict);
 				this.refreshList(containerEl.parentElement!.querySelector(':scope > div:last-child') as HTMLElement);
 			}));
@@ -415,7 +421,7 @@ class ReleaseNotesModal extends Modal {
 		contentEl.empty();
 		contentEl.createDiv({ cls: 'pul-release-notes-title', text: `${this.name} ${this.tag}` });
 		const bodyEl = contentEl.createDiv({ cls: 'pul-release-notes' });
-		MarkdownRenderer.render(this.app, this.body, bodyEl, '', this.plugin);
+		void MarkdownRenderer.render(this.app, this.body, bodyEl, '', this as unknown as Component);
 	}
 
 	onClose() {

@@ -12,8 +12,8 @@ import { SyncModule } from './modules/sync';
  * PluginLockerPlugin - Obsidian 插件入口
  */
 export default class PluginLockerPlugin extends Plugin {
-	settings: PluginLockerSettings;
-	moduleManager: ModuleManager;
+	settings!: PluginLockerSettings;
+	moduleManager!: ModuleManager;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -41,7 +41,7 @@ export default class PluginLockerPlugin extends Plugin {
 		this.settings = Object.assign(
 			{},
 			DEFAULT_SETTINGS,
-			await this.loadData()
+			(await this.loadData()) as Partial<PluginLockerSettings>
 		);
 	}
 
